@@ -1,0 +1,48 @@
+name: Toffee Cookie Auto Sync
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 * * * *' # প্রতি ঘণ্টায় চলবে
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgbm-dev
+          pip install playwright
+          playwright install chromium --with-deps
+
+      - name: Run Scraper with XVFB
+        run: |
+          mkdir -p public
+          # xvfb-run দিয়ে ব্রাউজারকে মনিটর ছাড়াই ডিসপ্লে মুডে চালানো হচ্ছে
+          xvfb-run --auto-servernum python main.py
+
+      - name: Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/*
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🔄 Update Toffee Cookie: $(date)"
+            git push
+          fi
